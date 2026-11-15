@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Workout log</title>
-<meta name="theme-color" content="#1f8a5b">
+<meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d1c1a" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -14,22 +15,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{
-  --bg:#f3f4f6;--card:#fff;--text:#14171c;--muted:#6b7280;--line:#e2e5ea;
-  --accent:#1f8a5b;--accent-ink:#fff;--accent-soft:#e3f3ec;--danger:#c93c3c;--chip:#eef0f4;
-  --radius:14px;color-scheme:light dark;
+  --bg:#f7f4ee;--card:#fdfcf9;--text:#2f2d29;--muted:#8d887e;--line:#ebe6dc;
+  --accent:#6b7d5f;--accent-ink:#fbfaf5;--accent-soft:#eef0e6;--danger:#b0664c;--chip:#f1ede5;
+  --radius:20px;color-scheme:light dark;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0e1013;--card:#181b20;--text:#eceff3;--muted:#9aa1ad;--line:#2a2e36;
-    --accent:#34b37a;--accent-ink:#06130d;--accent-soft:#16291f;--danger:#ef6b6b;--chip:#232731;}
+  :root{--bg:#1d1c1a;--card:#252421;--text:#ece8e0;--muted:#a19c91;--line:#34322e;
+    --accent:#a7b796;--accent-ink:#1d1f19;--accent-soft:#2b3027;--danger:#d88f74;--chip:#2e2c28;}
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);
-  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;letter-spacing:.005em;
   -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:6px;
-  padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:var(--bg);border-bottom:1px solid var(--line)}
+  padding:calc(10px + env(safe-area-inset-top)) 10px 10px;background:var(--bg);border-bottom:1px solid var(--line)}
 .ttl{flex:1;min-width:0;text-align:center}
-.topbar h1{margin:0;font-size:18px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar h1{margin:0;font-size:17px;font-weight:500;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #syncStat{display:block;margin:1px auto 0;border:0;background:none;font:inherit;font-size:12px;color:var(--muted);cursor:pointer;padding:0}
 #syncStat[hidden]{display:none}
 #syncStat.bad{color:var(--danger)}
@@ -37,32 +38,32 @@ html,body{margin:0;background:var(--bg);color:var(--text);
 .topbtn{width:44px;height:40px;border:0;background:none;color:var(--text);font-size:22px;border-radius:10px;cursor:pointer}
 .topbtn:active{background:var(--chip)}
 .topbtn[hidden]{display:block;visibility:hidden}
-main{max-width:640px;margin:0 auto;padding:14px 12px calc(40px + env(safe-area-inset-bottom))}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:0 0 12px}
+main{max-width:640px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:0 0 14px}
 a{color:inherit}
 .muted{color:var(--muted)}
 .small{font-size:14px}
-.big{font-size:19px;font-weight:650}
-.sec-h{font-size:13px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.big{font-size:20px;font-weight:500;letter-spacing:.01em}
+.sec-h{font-size:11.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .empty{color:var(--muted);text-align:center;padding:18px 10px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 16px;
-  border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);
-  font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+  border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);
+  font:inherit;font-weight:500;letter-spacing:.02em;text-decoration:none;cursor:pointer}
 .btn:active{filter:brightness(.95)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.big{width:100%;min-height:54px;font-size:18px}
+.btn.big{width:100%;min-height:54px;font-size:17px;letter-spacing:.05em}
 .btn.wide{width:100%}
 .btn.ghost{background:none;border-color:transparent}
 .btn.danger{color:var(--danger)}
-.btn.add{width:100%;margin-top:8px;border-style:dashed;color:var(--accent);background:none}
-.btn.link{min-height:auto;padding:4px 0;border:0;background:none;color:var(--accent);font-weight:600}
+.btn.add{width:100%;margin-top:10px;border-color:var(--accent);color:var(--accent);background:none}
+.btn.link{min-height:auto;padding:8px 0 0;border:0;border-radius:0;background:none;color:var(--accent);font-weight:500}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .row .btn{flex:1}
 .actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
 .start{margin-bottom:12px}
 .hero .btn{margin-top:12px}
 textarea,input{font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);
-  border-radius:10px;padding:10px 12px;width:100%}
+  border-radius:14px;padding:11px 14px;width:100%}
 textarea{resize:vertical;min-height:44px}
 input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .field{display:block;margin-bottom:12px}
@@ -70,33 +71,33 @@ input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;b
 .wmeta{margin:2px 2px 12px}
 /* exercise card */
 .ex-head{display:flex;align-items:center;gap:8px}
-.exname{flex:1;text-align:left;border:0;background:none;padding:0;font:inherit;font-size:18px;font-weight:700;color:var(--text);cursor:pointer;text-decoration:none}
+.exname{flex:1;text-align:left;border:0;background:none;padding:0;font:inherit;font-size:18px;font-weight:500;letter-spacing:.01em;color:var(--text);cursor:pointer;text-decoration:none}
 .icon{width:40px;height:40px;flex:none;border:0;background:none;color:var(--muted);font-size:17px;border-radius:10px;cursor:pointer}
 .icon:active{background:var(--chip)}
-.last{background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin:8px 0 10px;font-size:14px}
+.last{background:var(--accent-soft);border-radius:14px;padding:10px 12px;margin:10px 0 12px;font-size:14px}
 .last.new{background:var(--chip);color:var(--muted)}
 .last-h{display:flex;justify-content:space-between;gap:8px;color:var(--muted);margin-bottom:4px}
-.last-h a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
+.last-h a{color:var(--accent);text-decoration:none;font-weight:500;white-space:nowrap}
 .last-note{margin-top:6px;font-style:italic}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:14px;white-space:nowrap}
 .set-h,.set{display:grid;grid-template-columns:26px minmax(0,1fr) 14px minmax(0,1fr) 40px;gap:8px;align-items:center}
-.set-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.set-h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
 .set{margin-bottom:6px}
-.set .n{text-align:center;font-weight:700;color:var(--muted)}
+.set .n{text-align:center;font-weight:500;color:var(--muted)}
 .set .x{text-align:center;color:var(--muted)}
 .unit{position:relative}
-.unit input{padding-right:46px;text-align:right;font-weight:600}
+.unit input{padding-right:46px;text-align:right;font-weight:500}
 .unit input[data-f="r"]:placeholder-shown{border:2px dashed var(--accent);background:var(--card)}
 .unit input::placeholder{color:var(--muted);opacity:1}
 .unit span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none}
 .xnote{margin-top:10px}
-.xnote-view{margin-top:10px;padding:8px 10px;background:var(--chip);border-radius:10px;font-size:15px;white-space:pre-wrap}
+.xnote-view{margin-top:10px;padding:10px 12px;background:var(--chip);border-radius:14px;font-size:15px;white-space:pre-wrap}
 /* autocomplete */
 .ac{display:flex;gap:8px;margin-top:6px}
 .ac input{flex:1}
 .suggest{list-style:none;margin:6px 0 0;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--card);
-  box-shadow:0 6px 24px rgba(0,0,0,.12)}
+  box-shadow:0 8px 28px rgba(60,50,30,.10)}
 .suggest[hidden]{display:none}
 .suggest button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:none;color:var(--text);font:inherit;border-radius:8px;cursor:pointer}
 .suggest button.sel,.suggest button:hover{background:var(--chip)}
@@ -106,17 +107,17 @@ input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;b
 .summary li{display:flex;flex-direction:column;padding:7px 0;border-top:1px solid var(--line)}
 .summary li span:first-child{font-weight:600}
 .summary li span:last-child{font-size:15px}
-.wnote{white-space:pre-wrap;margin-top:8px;padding:8px 10px;background:var(--chip);border-radius:10px;font-size:15px}
+.wnote{white-space:pre-wrap;margin-top:10px;padding:10px 12px;background:var(--chip);border-radius:14px;font-size:15px}
 a.hist{display:block;text-decoration:none}
 .hist-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.month{font-size:13px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:18px 4px 8px}
+.month{font-size:11.5px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin:18px 4px 8px}
 .month:first-child{margin-top:4px}
-.seg{display:flex;background:var(--chip);border-radius:12px;padding:3px;margin-bottom:12px}
-.seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
-.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.seg{display:flex;background:var(--chip);border-radius:999px;padding:3px;margin-bottom:12px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:999px;font:inherit;font-weight:500;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 2px rgba(60,50,30,.08)}
 table.st{border-collapse:collapse;width:100%;margin-top:8px;font-size:15px}
 table.st td,table.st th{padding:6px 4px;border-top:1px solid var(--line);text-align:left}
-table.st th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-top:0}
+table.st th{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.12em;border-top:0}
 table.st td:first-child,table.st th:first-child{width:44px;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);
   background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:15px;z-index:50;
@@ -462,7 +463,7 @@ function finishWorkout() {
   c.end = Date.now(); c.updated = Date.now();
   workouts.push(c); saveWorkouts();
   active = null; saveActive();
-  toast('Workout saved 💪');
+  toast('Workout saved');
   location.replace('#/w/' + c.id);
 }
 function saveEdit() {
@@ -528,7 +529,7 @@ function historyView() {
       <a class="card hist" href="#/w/${w.id}">
         <div class="hist-top"><b>${dShort.format(w.start)}</b><span class="muted small">${workoutDur(w)}</span></div>
         <div class="muted">${esc(w.exercises.map(e => e.name).join(' · ') || '—')}</div>
-        ${w.note ? `<div class="small" style="margin-top:4px">📝 ${esc(w.note.length > 90 ? w.note.slice(0, 90) + '…' : w.note)}</div>` : ''}
+        ${w.note ? `<div class="small" style="margin-top:4px">${esc(w.note.length > 90 ? w.note.slice(0, 90) + '…' : w.note)}</div>` : ''}
       </a>`;
   }
   app.innerHTML = html;
@@ -541,7 +542,7 @@ function detail(id) {
     <div class="wmeta">
       <div class="big">${dLong.format(w.start)}</div>
       <div class="muted">${timeRange(w)}${w.end ? ' · ' + workoutDur(w) : ''}</div>
-      ${w.note ? `<div class="wnote">📝 ${esc(w.note)}</div>` : ''}
+      ${w.note ? `<div class="wnote">${esc(w.note)}</div>` : ''}
     </div>
     ${w.exercises.map(e => `
       <section class="card">
