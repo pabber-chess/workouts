@@ -87,6 +87,8 @@ input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;b
 .set .x{text-align:center;color:var(--muted)}
 .unit{position:relative}
 .unit input{padding-right:46px;text-align:right;font-weight:600}
+.unit input[data-f="r"]:placeholder-shown{border:2px dashed var(--accent);background:var(--card)}
+.unit input::placeholder{color:var(--muted);opacity:1}
 .unit span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none}
 .xnote{margin-top:10px}
 .xnote-view{margin-top:10px;padding:8px 10px;background:var(--chip);border-radius:10px;font-size:15px;white-space:pre-wrap}
@@ -380,10 +382,10 @@ function cardHTML(w, e, i) {
         return `<div class="set">
           <span class="n">${j + 1}</span>
           <div class="unit"><input data-f="w" data-e="${i}" data-s="${j}" inputmode="decimal" enterkeyhint="next"
-            value="${fmt(s.w)}" placeholder="${p && hasW(p) ? fmt(p.w) : '0'}" aria-label="Weight set ${j + 1}"><span>kg</span></div>
+            value="${fmt(s.w)}" placeholder="–" aria-label="Weight set ${j + 1}"><span>kg</span></div>
           <span class="x">×</span>
           <div class="unit"><input data-f="r" data-e="${i}" data-s="${j}" inputmode="numeric" enterkeyhint="done"
-            value="${s.r == null ? '' : s.r}" placeholder="${p && p.r != null ? p.r : ''}" aria-label="Reps set ${j + 1}"><span>reps</span></div>
+            value="${s.r == null ? '' : s.r}" placeholder=" " aria-label="Reps set ${j + 1}"><span>reps</span></div>
           <button class="icon" data-act="delset" data-e="${i}" data-s="${j}" aria-label="Delete set ${j + 1}">✕</button>
         </div>`;
       }).join('')}
@@ -416,6 +418,10 @@ function addExercise(raw) {
 function addSet(i) {
   const w = cur(), e = w.exercises[i];
   const prev = e.sets[e.sets.length - 1];
+  if (prev && !(prev.r > 0)) { // finish the current set first
+    toast(`Fill in reps for set ${e.sets.length} first`);
+    return focusSet(i, e.sets.length - 1, 'r');
+  }
   let wt = prev ? prev.w : null;
   if (!prev) { const lp = lastPerf(e.name, w.start, w.id); wt = lp && lp.e.sets[0] ? lp.e.sets[0].w : null; }
   e.sets.push({ w: wt, r: null });
@@ -429,14 +435,30 @@ function cleaned(w) {
   c.exercises = c.exercises.filter(e => e.sets.length || e.note);
   return c;
 }
+function missingReps(w) { // sets where reps haven't been typed in
+  const out = [];
+  w.exercises.forEach((e, i) => e.sets.forEach((s, j) => { if (!(s.r > 0)) out.push({ i, j, e }); }));
+  return out;
+}
+function checkMissing(w) { // true = go ahead and save
+  const miss = missingReps(w);
+  if (!miss.length) return true;
+  const names = [...new Set(miss.map(m => m.e.name))].join(', ');
+  if (confirm(`${miss.length} set${miss.length > 1 ? 's have' : ' has'} no reps filled in (${names}).\n\nOK = go back and fill them in\nCancel = save without ${miss.length > 1 ? 'them' : 'it'}`)) {
+    focusSet(miss[0].i, miss[0].j, 'r');
+    return false;
+  }
+  return 'dropped';
+}
 function finishWorkout() {
+  const chk = checkMissing(active);
+  if (!chk) return;
   const c = cleaned(active);
   if (!c.exercises.length && !c.note) {
     if (confirm('Nothing has been logged. Discard this workout?')) { active = null; saveActive(); location.replace('#/'); }
     return;
   }
-  const dropped = active.exercises.reduce((n, e) => n + e.sets.filter(s => !(s.r > 0)).length, 0);
-  if (!confirm('Finish and save this workout?' + (dropped ? `\n\n${dropped} set${dropped > 1 ? 's' : ''} without reps will be left out.` : ''))) return;
+  if (chk !== 'dropped' && !confirm('Finish and save this workout?')) return;
   c.end = Date.now(); c.updated = Date.now();
   workouts.push(c); saveWorkouts();
   active = null; saveActive();
@@ -444,6 +466,7 @@ function finishWorkout() {
   location.replace('#/w/' + c.id);
 }
 function saveEdit() {
+  if (!checkMissing(draft)) return;
   const c = cleaned(draft); c.updated = Date.now();
   const idx = workouts.findIndex(x => x.id === c.id);
   if (idx < 0) return;
