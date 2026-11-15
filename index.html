@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workout log</title>
+<meta name="theme-color" content="#1f8a5b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Workouts">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#f3f4f6;--card:#fff;--text:#14171c;--muted:#6b7280;--line:#e2e5ea;
+  --accent:#1f8a5b;--accent-ink:#fff;--accent-soft:#e3f3ec;--danger:#c93c3c;--chip:#eef0f4;
+  --radius:14px;color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1013;--card:#181b20;--text:#eceff3;--muted:#9aa1ad;--line:#2a2e36;
+    --accent:#34b37a;--accent-ink:#06130d;--accent-soft:#16291f;--danger:#ef6b6b;--chip:#232731;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:6px;
+  padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:var(--bg);border-bottom:1px solid var(--line)}
+.ttl{flex:1;min-width:0;text-align:center}
+.topbar h1{margin:0;font-size:18px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#syncStat{display:block;margin:1px auto 0;border:0;background:none;font:inherit;font-size:12px;color:var(--muted);cursor:pointer;padding:0}
+#syncStat[hidden]{display:none}
+#syncStat.bad{color:var(--danger)}
+.field input{margin-top:2px}
+.topbtn{width:44px;height:40px;border:0;background:none;color:var(--text);font-size:22px;border-radius:10px;cursor:pointer}
+.topbtn:active{background:var(--chip)}
+.topbtn[hidden]{display:block;visibility:hidden}
+main{max-width:640px;margin:0 auto;padding:14px 12px calc(40px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:0 0 12px}
+a{color:inherit}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.big{font-size:19px;font-weight:650}
+.sec-h{font-size:13px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.empty{color:var(--muted);text-align:center;padding:18px 10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 16px;
+  border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);
+  font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.btn:active{filter:brightness(.95)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{width:100%;min-height:54px;font-size:18px}
+.btn.wide{width:100%}
+.btn.ghost{background:none;border-color:transparent}
+.btn.danger{color:var(--danger)}
+.btn.add{width:100%;margin-top:8px;border-style:dashed;color:var(--accent);background:none}
+.btn.link{min-height:auto;padding:4px 0;border:0;background:none;color:var(--accent);font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{flex:1}
+.actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.start{margin-bottom:12px}
+.hero .btn{margin-top:12px}
+textarea,input{font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:44px}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.field{display:block;margin-bottom:12px}
+.field>span{display:block;font-size:14px;color:var(--muted);margin:0 0 4px 2px}
+.wmeta{margin:2px 2px 12px}
+/* exercise card */
+.ex-head{display:flex;align-items:center;gap:8px}
+.exname{flex:1;text-align:left;border:0;background:none;padding:0;font:inherit;font-size:18px;font-weight:700;color:var(--text);cursor:pointer;text-decoration:none}
+.icon{width:40px;height:40px;flex:none;border:0;background:none;color:var(--muted);font-size:17px;border-radius:10px;cursor:pointer}
+.icon:active{background:var(--chip)}
+.last{background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin:8px 0 10px;font-size:14px}
+.last.new{background:var(--chip);color:var(--muted)}
+.last-h{display:flex;justify-content:space-between;gap:8px;color:var(--muted);margin-bottom:4px}
+.last-h a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}
+.last-note{margin-top:6px;font-style:italic}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:14px;white-space:nowrap}
+.set-h,.set{display:grid;grid-template-columns:26px minmax(0,1fr) 14px minmax(0,1fr) 40px;gap:8px;align-items:center}
+.set-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.set{margin-bottom:6px}
+.set .n{text-align:center;font-weight:700;color:var(--muted)}
+.set .x{text-align:center;color:var(--muted)}
+.unit{position:relative}
+.unit input{padding-right:46px;text-align:right;font-weight:600}
+.unit span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none}
+.xnote{margin-top:10px}
+.xnote-view{margin-top:10px;padding:8px 10px;background:var(--chip);border-radius:10px;font-size:15px;white-space:pre-wrap}
+/* autocomplete */
+.ac{display:flex;gap:8px;margin-top:6px}
+.ac input{flex:1}
+.suggest{list-style:none;margin:6px 0 0;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+  box-shadow:0 6px 24px rgba(0,0,0,.12)}
+.suggest[hidden]{display:none}
+.suggest button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;background:none;color:var(--text);font:inherit;border-radius:8px;cursor:pointer}
+.suggest button.sel,.suggest button:hover{background:var(--chip)}
+.suggest b{color:var(--accent)}
+/* lists */
+.summary{list-style:none;padding:0;margin:10px 0 12px}
+.summary li{display:flex;flex-direction:column;padding:7px 0;border-top:1px solid var(--line)}
+.summary li span:first-child{font-weight:600}
+.summary li span:last-child{font-size:15px}
+.wnote{white-space:pre-wrap;margin-top:8px;padding:8px 10px;background:var(--chip);border-radius:10px;font-size:15px}
+a.hist{display:block;text-decoration:none}
+.hist-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.month{font-size:13px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:18px 4px 8px}
+.month:first-child{margin-top:4px}
+.seg{display:flex;background:var(--chip);border-radius:12px;padding:3px;margin-bottom:12px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+table.st{border-collapse:collapse;width:100%;margin-top:8px;font-size:15px}
+table.st td,table.st th{padding:6px 4px;border-top:1px solid var(--line);text-align:left}
+table.st th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-top:0}
+table.st td:first-child,table.st th:first-child{width:44px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:15px;z-index:50;
+  opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.reminder{border-color:var(--accent)}
+p{margin:6px 0}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="topbtn" id="backBtn" aria-label="Back" hidden>‹</button>
+  <div class="ttl"><h1 id="title">Workout log</h1><button id="syncStat" hidden></button></div>
+  <button class="topbtn" id="setBtn" aria-label="Settings and backup">⚙︎</button>
+</header>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- storage ---------- */
+const KEYS = { w: 'wt.v1.workouts', a: 'wt.v1.active', b: 'wt.v1.lastBackup', d: 'wt.v1.deleted', au: 'wt.v1.activeUpdated' };
+const SK = { tok: 'wt.sync.token', gist: 'wt.sync.gist', name: 'wt.sync.name', last: 'wt.sync.last' };
+function load(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function store(k, v) {
+  try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }
+  catch (e) { toast('Could not save – storage is unavailable in this browser mode'); }
+}
+let workouts = load(KEYS.w, []);
+let active = load(KEYS.a, null);
+let deleted = load(KEYS.d, {});          // id -> time deleted (so deletions sync too)
+let activeUpdated = load(KEYS.au, 0);
+let draft = null;           // copy of a past workout being edited
+let mode = null;            // 'active' | 'edit' while the editor is shown
+let timer = null;
+let histTab = 'workouts';
+const openNotes = new WeakSet();
+workouts.sort((a, b) => b.start - a.start);
+
+let persistAsked = false;
+function requestPersist() {
+  if (persistAsked) return; persistAsked = true;
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
+}
+function saveWorkouts() { workouts.sort((a, b) => b.start - a.start); store(KEYS.w, workouts); store(KEYS.d, deleted); requestPersist(); changed(); }
+function saveActive() { activeUpdated = Date.now(); store(KEYS.a, active); store(KEYS.au, activeUpdated); requestPersist(); changed(); }
+function persist() { if (mode === 'active') saveActive(); }
+function cur() { return mode === 'active' ? active : mode === 'edit' ? draft : null; }
+
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const app = $('#app');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function num(s) {
+  if (s == null) return null;
+  s = String(s).replace(',', '.').trim();
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, useGrouping: false });
+const fmt = n => (n == null ? '' : nf.format(n));
+const hasW = s => s.w != null && s.w !== 0;
+const setText = s => hasW(s) ? `${fmt(s.w)} kg × ${s.r == null ? '–' : s.r}` : `${s.r == null ? '–' : s.r} reps`;
+function summarize(sets) { // group consecutive sets with the same weight: "60 kg × 8, 8 · 62.5 kg × 6"
+  const groups = [];
+  for (const s of sets) {
+    const g = groups[groups.length - 1];
+    if (g && (g.w || 0) === (s.w || 0)) g.reps.push(s.r); else groups.push({ w: s.w, reps: [s.r] });
+  }
+  return groups.map(g => g.w ? `${fmt(g.w)} kg × ${g.reps.join(', ')}` : `${g.reps.join(', ')} reps`).join(' · ');
+}
+const dLong = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const dShort = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const dMonth = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const tFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+function dayDiff(ts) {
+  const a = new Date(ts); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 864e5);
+}
+function relDay(ts) {
+  const d = dayDiff(ts);
+  if (d === 0) return 'today';
+  if (d === 1) return 'yesterday';
+  if (d < 14) return `${d} days ago`;
+  if (d < 60) return `${Math.round(d / 7)} weeks ago`;
+  return `${Math.round(d / 30)} months ago`;
+}
+function dur(ms) {
+  const m = Math.max(0, Math.round(ms / 60000)), h = Math.floor(m / 60);
+  return h ? `${h} h ${m % 60} min` : `${m} min`;
+}
+const timeRange = w => `${tFmt.format(w.start)}${w.end ? '–' + tFmt.format(w.end) : ''}`;
+const workoutDur = w => (w.end ? dur(w.end - w.start) : '');
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- exercise knowledge ---------- */
+function exerciseNames() { // most recently used first, one spelling per name
+  const m = new Map();
+  for (const w of workouts) for (const e of w.exercises) {
+    const k = e.name.toLowerCase(); if (!m.has(k)) m.set(k, e.name);
+  }
+  return [...m.values()];
+}
+function canonical(name) {
+  name = name.replace(/\s+/g, ' ').trim();
+  if (!name) return '';
+  const k = name.toLowerCase();
+  const hit = exerciseNames().find(n => n.toLowerCase() === k);
+  return hit || name.charAt(0).toUpperCase() + name.slice(1);
+}
+function lastPerf(name, beforeTs, skipId) {
+  const k = name.toLowerCase();
+  for (const w of workouts) {
+    if (w.id === skipId) continue;
+    if (beforeTs != null && w.start >= beforeTs) continue;
+    const e = w.exercises.find(x => x.name.toLowerCase() === k);
+    if (e) return { w, e };
+  }
+  return null;
+}
+
+/* ---------- routing ---------- */
+const backBtn = $('#backBtn'), setBtn = $('#setBtn');
+let backPath = null;
+function setTop(title, back, showSettings = true) {
+  $('#title').textContent = title;
+  backPath = back; backBtn.hidden = !back;
+  setBtn.hidden = !showSettings;
+}
+backBtn.onclick = () => {
+  if (backPath === 'BACK') return window.history.length > 1 ? window.history.back() : go('/');
+  if (backPath) go(backPath);
+};
+setBtn.onclick = () => go('/settings');
+function go(path) { if (location.hash === '#' + path) route(); else location.hash = path; }
+function route() {
+  clearInterval(timer); mode = null;
+  if (location.hash.startsWith('#setup=')) { handleSetupLink(); setTimeout(() => syncOn() && sync(), 0); }
+  const p = (location.hash.slice(1) || '/').split('/').filter(Boolean);
+  window.scrollTo(0, 0);
+  switch (p[0]) {
+    case 'workout': return active ? editor('active') : home();
+    case 'edit': return startEdit(p[1]);
+    case 'history': return historyView();
+    case 'w': return detail(p[1]);
+    case 'x': return exHistory(decodeURIComponent(p.slice(1).join('/')));
+    case 'settings': return settings();
+    default: return home();
+  }
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- home ---------- */
+function home() {
+  const nm = load(SK.name, '');
+  setTop(nm ? `${nm}${/s$/i.test(nm) ? '’' : '’s'} workouts` : 'Workout log', null);
+  const last = workouts[0];
+  const lb = load(KEYS.b, 0);
+  const needBackup = !syncOn() && workouts.length >= 5 && Date.now() - lb > 30 * 864e5;
+  app.innerHTML = `
+    ${active ? `
+      <section class="card hero">
+        <div class="sec-h">Workout in progress</div>
+        <div class="big">Started ${relDay(active.start)} at ${tFmt.format(active.start)}</div>
+        <div class="muted">${active.exercises.length} exercise${active.exercises.length === 1 ? '' : 's'} so far</div>
+        <a class="btn primary big" href="#/workout">Resume workout</a>
+      </section>`
+      : `<button class="btn primary big start" data-act="start">Start new workout</button>`}
+    ${last ? `
+      <section class="card">
+        <div class="sec-h">Last workout</div>
+        <div class="big">${dLong.format(last.start)}</div>
+        <div class="muted">${relDay(last.start)}${last.end ? ' · ' + workoutDur(last) : ''}</div>
+        ${last.note ? `<div class="wnote">${esc(last.note)}</div>` : ''}
+        <ul class="summary">${last.exercises.map(e => `<li><span>${esc(e.name)}</span><span class="muted">${esc(summarize(e.sets))}</span></li>`).join('')}</ul>
+        <a class="btn wide" href="#/w/${last.id}">View full workout</a>
+      </section>
+      <a class="btn wide" href="#/history">Full history · ${workouts.length} workout${workouts.length === 1 ? '' : 's'}</a>`
+      : `<p class="empty">No workouts yet.<br>Tap “Start new workout” and add exercises as you go.</p>`}
+    ${needBackup ? `
+      <section class="card reminder" style="margin-top:12px">
+        <div class="sec-h">Time for a backup</div>
+        <p class="small">Your workouts live only on this device. ${lb ? `Last backup was ${relDay(lb)}.` : 'You haven’t made a backup yet.'}</p>
+        <a class="btn wide" href="#/settings">Set up sync or back up</a>
+      </section>` : ''}
+    ${!syncOn() && !needBackup ? `<p class="empty small"><a href="#/settings">Set up sync between your devices ›</a></p>` : ''}`;
+}
+function startWorkout() {
+  if (!active) { active = { id: uid(), start: Date.now(), note: '', exercises: [] }; saveActive(); }
+  go('/workout');
+  setTimeout(() => { const i = $('#exname'); i && i.focus(); }, 50);
+}
+
+/* ---------- editor (active workout or editing a past one) ---------- */
+function startEdit(id) {
+  const w = workouts.find(x => x.id === id);
+  if (!w) return go('/history');
+  if (!draft || draft.id !== id) draft = JSON.parse(JSON.stringify(w));
+  editor('edit');
+}
+function editor(m) {
+  mode = m;
+  const w = cur();
+  setTop(m === 'active' ? 'Workout' : 'Edit workout', m === 'active' ? '/' : `/w/${w.id}`);
+  app.innerHTML = `
+    <div class="wmeta">
+      <div class="big">${dLong.format(w.start)}</div>
+      <div class="muted">${m === 'active' ? `Started ${tFmt.format(w.start)} · <span id="elapsed"></span>` : timeRange(w)}</div>
+    </div>
+    <label class="field"><span>Workout note</span>
+      <textarea data-f="wnote" rows="2" placeholder="e.g. Very tired today, slept badly">${esc(w.note)}</textarea></label>
+    <div id="exlist">${w.exercises.map((e, i) => cardHTML(w, e, i)).join('')}</div>
+    <section class="card addex">
+      <label for="exname" class="big">Add exercise</label>
+      <div class="ac">
+        <input id="exname" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false"
+          placeholder="${w.exercises.length ? 'Next exercise…' : 'e.g. Bench press'}" enterkeyhint="done">
+        <button class="btn primary" data-act="addex">Add</button>
+      </div>
+      <ul id="suggest" class="suggest" hidden></ul>
+    </section>
+    <div class="actions">
+      ${m === 'active'
+        ? `<button class="btn primary big" data-act="finish">Finish workout</button>
+           <button class="btn ghost danger" data-act="discard">Discard workout</button>`
+        : `<button class="btn primary big" data-act="save">Save changes</button>
+           <button class="btn ghost" data-act="cancel">Cancel</button>`}
+    </div>`;
+  if (m === 'active') {
+    const tick = () => { const el = $('#elapsed'); if (el && active) el.textContent = dur(Date.now() - active.start); };
+    tick(); timer = setInterval(tick, 15000);
+  }
+}
+function cardHTML(w, e, i) {
+  const lp = lastPerf(e.name, w.start, w.id);
+  const prevFor = j => lp ? (lp.e.sets[j] || lp.e.sets[lp.e.sets.length - 1]) : null;
+  const noteOpen = e.note || openNotes.has(e);
+  return `
+  <section class="card ex" data-card="${i}">
+    <div class="ex-head">
+      <button class="exname" data-act="rename" data-e="${i}" title="Tap to rename">${esc(e.name)}</button>
+      <button class="icon" data-act="delex" data-e="${i}" aria-label="Remove exercise">✕</button>
+    </div>
+    ${lp ? `
+      <div class="last">
+        <div class="last-h"><span>Last time · ${dShort.format(lp.w.start)} (${relDay(lp.w.start)})</span>
+          <a href="#/x/${encodeURIComponent(e.name)}">History ›</a></div>
+        <div class="chips">${lp.e.sets.map(s => `<span class="chip">${setText(s)}</span>`).join('')}</div>
+        ${lp.e.note ? `<div class="last-note">“${esc(lp.e.note)}”</div>` : ''}
+      </div>`
+      : `<div class="last new">First time logging this exercise</div>`}
+    <div class="sets">
+      ${e.sets.length ? `<div class="set-h"><span>Set</span><span style="text-align:right">Weight</span><span></span><span style="text-align:right">Reps</span><span></span></div>` : ''}
+      ${e.sets.map((s, j) => {
+        const p = prevFor(j);
+        return `<div class="set">
+          <span class="n">${j + 1}</span>
+          <div class="unit"><input data-f="w" data-e="${i}" data-s="${j}" inputmode="decimal" enterkeyhint="next"
+            value="${fmt(s.w)}" placeholder="${p && hasW(p) ? fmt(p.w) : '0'}" aria-label="Weight set ${j + 1}"><span>kg</span></div>
+          <span class="x">×</span>
+          <div class="unit"><input data-f="r" data-e="${i}" data-s="${j}" inputmode="numeric" enterkeyhint="done"
+            value="${s.r == null ? '' : s.r}" placeholder="${p && p.r != null ? p.r : ''}" aria-label="Reps set ${j + 1}"><span>reps</span></div>
+          <button class="icon" data-act="delset" data-e="${i}" data-s="${j}" aria-label="Delete set ${j + 1}">✕</button>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn add" data-act="addset" data-e="${i}">+ Add set</button>
+    ${noteOpen
+      ? `<textarea class="xnote" data-f="xnote" data-e="${i}" rows="2" placeholder="Note for this exercise, e.g. seat height 4, felt easy">${esc(e.note)}</textarea>`
+      : `<button class="btn link" data-act="note" data-e="${i}">+ Add note</button>`}
+  </section>`;
+}
+function rerenderCard(i) {
+  const el = $(`[data-card="${i}"]`); const w = cur();
+  if (el) el.outerHTML = cardHTML(w, w.exercises[i], i);
+}
+function focusSet(i, j, field) {
+  const inp = $(`input[data-f="${field}"][data-e="${i}"][data-s="${j}"]`);
+  if (inp) { inp.focus(); inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+function addExercise(raw) {
+  const w = cur(); const name = canonical(raw);
+  if (!name) { $('#exname').focus(); return; }
+  const lp = lastPerf(name, w.start, w.id);
+  const firstW = lp && lp.e.sets[0] ? lp.e.sets[0].w : null;
+  w.exercises.push({ name, note: '', sets: [{ w: firstW, r: null }] });
+  persist();
+  editor(mode);
+  const i = w.exercises.length - 1;
+  focusSet(i, 0, firstW != null ? 'r' : 'w');
+}
+function addSet(i) {
+  const w = cur(), e = w.exercises[i];
+  const prev = e.sets[e.sets.length - 1];
+  let wt = prev ? prev.w : null;
+  if (!prev) { const lp = lastPerf(e.name, w.start, w.id); wt = lp && lp.e.sets[0] ? lp.e.sets[0].w : null; }
+  e.sets.push({ w: wt, r: null });
+  persist(); rerenderCard(i);
+  focusSet(i, e.sets.length - 1, 'r');
+}
+function cleaned(w) {
+  const c = JSON.parse(JSON.stringify(w));
+  c.note = (c.note || '').trim();
+  c.exercises.forEach(e => { e.note = (e.note || '').trim(); e.sets = e.sets.filter(s => s.r != null && s.r > 0); });
+  c.exercises = c.exercises.filter(e => e.sets.length || e.note);
+  return c;
+}
+function finishWorkout() {
+  const c = cleaned(active);
+  if (!c.exercises.length && !c.note) {
+    if (confirm('Nothing has been logged. Discard this workout?')) { active = null; saveActive(); location.replace('#/'); }
+    return;
+  }
+  const dropped = active.exercises.reduce((n, e) => n + e.sets.filter(s => !(s.r > 0)).length, 0);
+  if (!confirm('Finish and save this workout?' + (dropped ? `\n\n${dropped} set${dropped > 1 ? 's' : ''} without reps will be left out.` : ''))) return;
+  c.end = Date.now(); c.updated = Date.now();
+  workouts.push(c); saveWorkouts();
+  active = null; saveActive();
+  toast('Workout saved 💪');
+  location.replace('#/w/' + c.id);
+}
+function saveEdit() {
+  const c = cleaned(draft); c.updated = Date.now();
+  const idx = workouts.findIndex(x => x.id === c.id);
+  if (idx < 0) return;
+  workouts[idx] = c; saveWorkouts(); draft = null;
+  toast('Changes saved');
+  location.replace('#/w/' + c.id);
+}
+
+/* ---------- autocomplete ---------- */
+let selIdx = -1;
+function suggest() {
+  const inp = $('#exname'), ul = $('#suggest'); if (!inp) return;
+  const q = inp.value.trim().toLowerCase(); selIdx = -1;
+  if (!q) { ul.hidden = true; ul.innerHTML = ''; return; }
+  const names = exerciseNames();
+  const a = names.filter(n => n.toLowerCase().startsWith(q));
+  const b = names.filter(n => { const l = n.toLowerCase(); return !l.startsWith(q) && l.includes(q); });
+  const list = [...a, ...b].slice(0, 8);
+  if (!list.length) { ul.hidden = true; ul.innerHTML = ''; return; }
+  ul.innerHTML = list.map(n => {
+    const k = n.toLowerCase().indexOf(q);
+    const h = esc(n.slice(0, k)) + '<b>' + esc(n.slice(k, k + q.length)) + '</b>' + esc(n.slice(k + q.length));
+    return `<li><button type="button" data-act="pick" data-name="${esc(n)}">${h}</button></li>`;
+  }).join('');
+  ul.hidden = false;
+}
+function moveSel(d) {
+  const btns = [...document.querySelectorAll('#suggest button')]; if (!btns.length) return;
+  selIdx = (selIdx + d + btns.length) % btns.length;
+  btns.forEach((b, k) => b.classList.toggle('sel', k === selIdx));
+}
+
+/* ---------- history ---------- */
+function historyView() {
+  setTop('History', '/');
+  const seg = `<div class="seg"><button data-act="tab" data-t="workouts" class="${histTab === 'workouts' ? 'on' : ''}">Workouts</button>
+    <button data-act="tab" data-t="exercises" class="${histTab === 'exercises' ? 'on' : ''}">Exercises</button></div>`;
+  if (!workouts.length) { app.innerHTML = seg + `<p class="empty">No workouts saved yet.</p>`; return; }
+  if (histTab === 'exercises') {
+    const counts = new Map();
+    for (const w of workouts) for (const e of w.exercises) {
+      const k = e.name.toLowerCase();
+      if (!counts.has(k)) counts.set(k, { name: e.name, n: 0, last: w.start });
+      counts.get(k).n++;
+    }
+    const list = [...counts.values()].sort((a, b) => a.name.localeCompare(b.name));
+    app.innerHTML = seg + list.map(x => `
+      <a class="card hist" href="#/x/${encodeURIComponent(x.name)}">
+        <div class="hist-top"><b>${esc(x.name)}</b><span class="muted small">${x.n}×</span></div>
+        <div class="muted small">Last: ${dShort.format(x.last)} (${relDay(x.last)})</div>
+      </a>`).join('');
+    return;
+  }
+  let html = seg, month = '';
+  for (const w of workouts) {
+    const m = dMonth.format(w.start);
+    if (m !== month) { html += `<div class="month">${m}</div>`; month = m; }
+    html += `
+      <a class="card hist" href="#/w/${w.id}">
+        <div class="hist-top"><b>${dShort.format(w.start)}</b><span class="muted small">${workoutDur(w)}</span></div>
+        <div class="muted">${esc(w.exercises.map(e => e.name).join(' · ') || '—')}</div>
+        ${w.note ? `<div class="small" style="margin-top:4px">📝 ${esc(w.note.length > 90 ? w.note.slice(0, 90) + '…' : w.note)}</div>` : ''}
+      </a>`;
+  }
+  app.innerHTML = html;
+}
+function detail(id) {
+  const w = workouts.find(x => x.id === id);
+  if (!w) return go('/history');
+  setTop(dShort.format(w.start), '/history');
+  app.innerHTML = `
+    <div class="wmeta">
+      <div class="big">${dLong.format(w.start)}</div>
+      <div class="muted">${timeRange(w)}${w.end ? ' · ' + workoutDur(w) : ''}</div>
+      ${w.note ? `<div class="wnote">📝 ${esc(w.note)}</div>` : ''}
+    </div>
+    ${w.exercises.map(e => `
+      <section class="card">
+        <a class="exname" href="#/x/${encodeURIComponent(e.name)}">${esc(e.name)} <span class="muted small">›</span></a>
+        ${setTable(e.sets)}
+        ${e.note ? `<div class="xnote-view">${esc(e.note)}</div>` : ''}
+      </section>`).join('')}
+    <div class="actions">
+      <a class="btn wide" href="#/edit/${w.id}">Edit workout</a>
+      <button class="btn ghost danger" data-act="delw" data-id="${w.id}">Delete workout</button>
+    </div>`;
+}
+function setTable(sets) {
+  return `<table class="st"><tr><th>Set</th><th>Weight</th><th>Reps</th></tr>
+    ${sets.map((s, j) => `<tr><td>${j + 1}</td><td>${hasW(s) ? fmt(s.w) + ' kg' : 'Body weight'}</td><td>${s.r}</td></tr>`).join('')}</table>`;
+}
+function exHistory(name) {
+  const k = name.toLowerCase();
+  const rows = [];
+  for (const w of workouts) for (const e of w.exercises) if (e.name.toLowerCase() === k) rows.push({ w, e });
+  setTop(name, 'BACK');
+  if (!rows.length) { app.innerHTML = `<p class="empty">No history for this exercise yet.</p>`; return; }
+  let best = null;
+  for (const { e } of rows) for (const s of e.sets) if (hasW(s) && (!best || s.w > best.w || (s.w === best.w && s.r > best.r))) best = s;
+  app.innerHTML = `
+    <div class="wmeta"><div class="big">${esc(rows[0].e.name)}</div>
+      <div class="muted">${rows.length} time${rows.length > 1 ? 's' : ''}${best ? ` · heaviest set ${setText(best)}` : ''}</div></div>
+    ${rows.map(({ w, e }) => `
+      <a class="card hist" href="#/w/${w.id}">
+        <div class="hist-top"><b>${dShort.format(w.start)}</b><span class="muted small">${relDay(w.start)}</span></div>
+        <div class="chips" style="margin-top:6px">${e.sets.map(s => `<span class="chip">${setText(s)}</span>`).join('')}</div>
+        ${e.note ? `<div class="small" style="margin-top:6px;font-style:italic">“${esc(e.note)}”</div>` : ''}
+      </a>`).join('')}`;
+}
+
+/* ---------- settings / backup ---------- */
+function backupJSON() {
+  return JSON.stringify({ app: 'workout-log', version: 1, exported: new Date().toISOString(), workouts }, null, 1);
+}
+const backupName = () => `workouts-backup-${new Date().toISOString().slice(0, 10)}.json`;
+function settings() {
+  setTop('Settings & backup', '/', false);
+  const lb = load(KEYS.b, 0);
+  const canShare = !!(navigator.canShare && window.File && navigator.canShare({ files: [new File(['x'], 'x.json', { type: 'application/json' })] }));
+  app.innerHTML = `
+    ${syncSection()}
+    <section class="card">
+      <div class="sec-h">Backup file</div>
+      <p class="small">${syncOn() ? 'Sync already keeps a copy of everything on GitHub. A backup file is optional – an extra copy you keep yourself.'
+        : `Without sync, your workouts are saved on this device only (${workouts.length} workout${workouts.length === 1 ? '' : 's'}). A backup file lets you restore them or move them to another device.`}</p>
+      <p class="muted small">Last backup: ${lb ? dLong.format(lb) + ' (' + relDay(lb) + ')' : 'never'}</p>
+      <div class="row" style="margin-top:10px">
+        ${canShare ? `<button class="btn primary" data-act="share">Share backup…</button>` : ''}
+        <button class="btn ${canShare ? '' : 'primary'}" data-act="export">Download backup</button>
+      </div>
+      <label class="btn wide" style="margin-top:8px">Import backup file<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+      <p class="muted small">Importing adds the workouts from the file. Workouts you already have are not duplicated.</p>
+    </section>
+    <section class="card">
+      <div class="sec-h">Put it on your home screen</div>
+      <p class="small"><b>iPhone:</b> open the page in Safari → Share button → <i>Add to Home Screen</i>.<br>
+        <b>Android:</b> open in Chrome → menu ⋮ → <i>Add to home screen</i> / <i>Install app</i>.</p>
+      <p class="small muted">It then opens full-screen like an app.</p>
+    </section>
+    <section class="card">
+      <div class="sec-h">Danger zone</div>
+      <button class="btn ghost danger" data-act="wipe">Delete all workouts</button>
+    </section>`;
+}
+function exportBackup() {
+  const blob = new Blob([backupJSON()], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = backupName();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  store(KEYS.b, Date.now()); settings(); toast('Backup downloaded');
+}
+async function shareBackup() {
+  const file = new File([backupJSON()], backupName(), { type: 'application/json' });
+  try { await navigator.share({ files: [file], title: 'Workout backup' }); store(KEYS.b, Date.now()); settings(); toast('Backup shared'); }
+  catch (e) { if (e && e.name !== 'AbortError') exportBackup(); }
+}
+function importBackup(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      const arr = Array.isArray(d) ? d : d.workouts;
+      if (!Array.isArray(arr)) throw new Error('bad');
+      const have = new Set(workouts.map(w => w.id));
+      let added = 0;
+      for (const w of arr) {
+        if (!w || typeof w.start !== 'number' || !Array.isArray(w.exercises)) continue;
+        if (!w.id) w.id = uid();
+        if (have.has(w.id)) continue;
+        workouts.push({
+          id: w.id, start: w.start, end: w.end || null, updated: Date.now(), note: w.note || '',
+          exercises: w.exercises.filter(e => e && e.name).map(e => ({
+            name: String(e.name), note: e.note || '',
+            sets: (e.sets || []).map(s => ({ w: num(s.w), r: num(s.r) })).filter(s => s.r != null)
+          }))
+        });
+        have.add(w.id); added++;
+      }
+      saveWorkouts(); settings();
+      toast(added ? `Imported ${added} workout${added > 1 ? 's' : ''}` : 'Nothing new in that file');
+    } catch (e) { toast('That doesn’t look like a workout backup file'); }
+  };
+  r.readAsText(file);
+}
+
+/* ---------- events ---------- */
+app.addEventListener('input', ev => {
+  const t = ev.target;
+  if (t.id === 'exname') return suggest();
+  const f = t.dataset.f; const w = cur(); if (!f || !w) return;
+  if (f === 'wnote') w.note = t.value;
+  else {
+    const e = w.exercises[+t.dataset.e]; if (!e) return;
+    if (f === 'xnote') e.note = t.value;
+    else {
+      const s = e.sets[+t.dataset.s]; if (!s) return;
+      if (f === 'w') s.w = num(t.value);
+      if (f === 'r') { const r = num(t.value); s.r = r == null ? null : Math.round(r); }
+    }
+  }
+  persist();
+});
+app.addEventListener('change', ev => {
+  if (ev.target.id === 'importFile' && ev.target.files[0]) importBackup(ev.target.files[0]);
+});
+app.addEventListener('keydown', ev => {
+  const t = ev.target;
+  if (t.id === 'exname') {
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); moveSel(1); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); moveSel(-1); }
+    else if (ev.key === 'Escape') { $('#suggest').hidden = true; }
+    else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const sel = $('#suggest button.sel');
+      addExercise(sel ? sel.dataset.name : t.value);
+    }
+  } else if (ev.key === 'Enter' && t.dataset.f === 'w') {
+    ev.preventDefault(); focusSet(t.dataset.e, t.dataset.s, 'r');
+  } else if (ev.key === 'Enter' && t.dataset.f === 'r') {
+    ev.preventDefault(); t.blur();
+  }
+});
+document.addEventListener('click', ev => {
+  if (!ev.target.closest('.addex')) { const ul = $('#suggest'); if (ul) ul.hidden = true; }
+});
+app.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act, i = +b.dataset.e, w = cur();
+  switch (act) {
+    case 'start': return startWorkout();
+    case 'addex': return addExercise($('#exname').value);
+    case 'pick': return addExercise(b.dataset.name);
+    case 'addset': return addSet(i);
+    case 'delset': {
+      w.exercises[i].sets.splice(+b.dataset.s, 1); persist(); return rerenderCard(i);
+    }
+    case 'delex': {
+      const e = w.exercises[i];
+      const logged = e.sets.some(s => s.r > 0);
+      if (logged && !confirm(`Remove ${e.name} from this workout?`)) return;
+      w.exercises.splice(i, 1); persist(); return editor(mode);
+    }
+    case 'rename': {
+      const e = w.exercises[i];
+      const n = prompt('Exercise name', e.name);
+      if (n == null) return;
+      const c = canonical(n); if (!c) return;
+      e.name = c; persist(); return rerenderCard(i);
+    }
+    case 'note': {
+      openNotes.add(w.exercises[i]); rerenderCard(i);
+      const ta = $(`textarea[data-f="xnote"][data-e="${i}"]`); ta && ta.focus(); return;
+    }
+    case 'finish': return finishWorkout();
+    case 'discard':
+      if (confirm('Discard this workout? Nothing from it will be saved.')) { active = null; saveActive(); location.replace('#/'); }
+      return;
+    case 'save': return saveEdit();
+    case 'cancel': { const id = draft && draft.id; draft = null; return location.replace(id ? '#/w/' + id : '#/history'); }
+    case 'delw':
+      if (confirm('Delete this workout permanently?')) {
+        deleted[b.dataset.id] = Date.now();
+        workouts = workouts.filter(x => x.id !== b.dataset.id); saveWorkouts();
+        toast('Workout deleted'); location.replace('#/history');
+      }
+      return;
+    case 'tab': histTab = b.dataset.t; return historyView();
+    case 'son': return connectSync();
+    case 'ssync': return sync();
+    case 'lshare': return sendLink('share');
+    case 'lcopy': return sendLink('copy');
+    case 'spaste': return pasteSetup();
+    case 'soff':
+      if (confirm('Turn off sync on this device? Your workouts stay here and in the Gist.')) {
+        store(SK.tok, null); store(SK.gist, null); gistId = null; setSync('off'); settings();
+      }
+      return;
+    case 'export': return exportBackup();
+    case 'share': return shareBackup();
+    case 'wipe':
+      if (confirm(syncOn() ? 'Delete ALL workouts – on all your synced devices?' : 'Delete ALL workouts on this device?') && confirm('Really? This cannot be undone unless you have a backup.')) {
+        workouts.forEach(w => { deleted[w.id] = Date.now(); });
+        workouts = []; saveWorkouts(); active = null; saveActive(); toast('All workouts deleted'); go('/');
+      }
+      return;
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && mode === 'active') { const el = $('#elapsed'); if (el) el.textContent = dur(Date.now() - active.start); }
+});
+
+/* ---------- sync via a secret GitHub Gist (one Gist per name) ---------- */
+const GIST_FILE = 'workouts.json';
+const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Workout%20log%20sync';
+let gistId = load(SK.gist, null);
+let syncing = false, again = false, pushT = null, retryT = null, syncState = 'off', syncErr = '';
+const syncOn = () => !!(load(SK.tok, '') && load(SK.name, ''));
+const gistDesc = () => `Workout log sync – ${load(SK.name, '').trim()}`;
+
+function normW(w) {
+  return {
+    id: String(w.id), start: +w.start, end: w.end ? +w.end : null, updated: +w.updated || 0, note: w.note || '',
+    exercises: (w.exercises || []).filter(e => e && e.name).map(e => ({
+      name: String(e.name), note: e.note || '',
+      sets: (e.sets || []).map(s => ({ w: s.w == null ? null : +s.w, r: s.r == null ? null : +s.r }))
+    }))
+  };
+}
+function normData(d) {
+  d = d || {};
+  const a = d.active || {};
+  return {
+    workouts: (d.workouts || []).filter(w => w && w.id && w.start).map(normW),
+    deleted: { ...(d.deleted || {}) },
+    active: { updated: +a.updated || 0, w: a.w ? normW(a.w) : null }
+  };
+}
+const localData = () => normData({ workouts, deleted, active: { updated: activeUpdated, w: active } });
+function canon(d) {
+  const ws = [...d.workouts].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const del = Object.keys(d.deleted).sort().map(k => [k, d.deleted[k]]);
+  return JSON.stringify([ws, del, d.active]);
+}
+function mergeData(A, B) {
+  const del = { ...A.deleted };
+  for (const [k, v] of Object.entries(B.deleted)) del[k] = Math.max(del[k] || 0, v);
+  const m = new Map();
+  for (const w of [...A.workouts, ...B.workouts]) {
+    const o = m.get(w.id);
+    if (!o || w.updated > o.updated) m.set(w.id, w);
+  }
+  const ws = [...m.values()].filter(w => !(del[w.id] >= w.updated)).sort((a, b) => b.start - a.start);
+  let act = B.active.updated > A.active.updated ? B.active : A.active;
+  if (act.w && (m.has(act.w.id) || del[act.w.id])) act = { updated: act.updated, w: null }; // finished/deleted elsewhere
+  return { workouts: ws, deleted: del, active: act };
+}
+function applyData(d) {
+  workouts = d.workouts; deleted = d.deleted; active = d.active.w; activeUpdated = d.active.updated;
+  store(KEYS.w, workouts); store(KEYS.d, deleted); store(KEYS.a, active); store(KEYS.au, activeUpdated);
+}
+
+async function gh(path, opts = {}) {
+  const headers = { Authorization: 'Bearer ' + load(SK.tok, ''), Accept: 'application/vnd.github+json' };
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch('https://api.github.com' + path, { ...opts, headers, cache: 'no-store' });
+  if (!r.ok) { const e = new Error('GitHub ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+async function findOrCreateGist() {
+  const desc = gistDesc();
+  for (let page = 1; page <= 10; page++) {
+    const list = await gh(`/gists?per_page=100&page=${page}`);
+    const hit = list.find(g => g.description === desc && g.files && g.files[GIST_FILE]);
+    if (hit) return hit.id;
+    if (list.length < 100) break;
+  }
+  const empty = { app: 'workout-log', version: 2, workouts: [], deleted: {}, active: { updated: 0, w: null } };
+  const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ description: desc, public: false, files: { [GIST_FILE]: { content: JSON.stringify(empty) } } }) });
+  return g.id;
+}
+async function readRemote(id) {
+  const g = await gh('/gists/' + id);
+  const f = g.files && g.files[GIST_FILE];
+  if (!f) return normData({});
+  let txt = f.content;
+  if (f.truncated) txt = await (await fetch(f.raw_url, { cache: 'no-store' })).text();
+  try { return normData(JSON.parse(txt)); } catch (e) { return normData({}); }
+}
+async function sync() {
+  if (!syncOn()) return setSync('off');
+  if (syncing) { again = true; return; }
+  syncing = true; clearTimeout(retryT); clearTimeout(pushT);
+  if (syncState !== 'ok' && syncState !== 'pending') setSync('syncing');
+  try {
+    if (!gistId) { gistId = await findOrCreateGist(); store(SK.gist, gistId); }
+    const remote = await readRemote(gistId);
+    const merged = mergeData(localData(), remote);
+    if (canon(merged) !== canon(remote)) {
+      const body = { app: 'workout-log', version: 2, saved: new Date().toISOString(), ...merged };
+      await gh('/gists/' + gistId, { method: 'PATCH', body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(body) } } }) });
+    }
+    const before = localData();
+    const final = mergeData(before, merged);            // keeps edits made while we were waiting
+    if (canon(final) !== canon(before)) { applyData(final); refreshView(); }
+    if (canon(final) !== canon(merged)) again = true;   // something changed locally meanwhile – push it
+    store(SK.last, Date.now()); syncErr = '';
+    setSync(again ? 'pending' : 'ok');
+  } catch (e) {
+    if (e.status === 404 && gistId) { gistId = null; store(SK.gist, null); again = true; }
+    else if (e.status === 401 || e.status === 403) { syncErr = 'GitHub refused the token – check it in Settings'; setSync('auth'); }
+    else { syncErr = 'Could not reach GitHub – retrying'; setSync('offline'); retryT = setTimeout(sync, 60000); }
+  } finally {
+    syncing = false;
+    if (again) { again = false; setTimeout(sync, 300); }
+  }
+}
+function changed() {
+  if (!syncOn()) return;
+  setSync('pending');
+  clearTimeout(pushT); pushT = setTimeout(sync, 3000);
+}
+function setSync(st) {
+  syncState = st;
+  const el = $('#syncStat');
+  if (!el) return;
+  if (st === 'off') { el.hidden = true; return; }
+  el.hidden = false;
+  el.classList.toggle('bad', st === 'auth' || st === 'offline');
+  const last = load(SK.last, 0);
+  el.textContent = st === 'syncing' ? 'Syncing…'
+    : st === 'pending' ? 'Saving to sync…'
+    : st === 'ok' ? `Synced ${tFmt.format(last)}`
+    : st === 'auth' ? 'Sync problem – tap for settings'
+    : 'Offline – will retry';
+  if (mode === null && location.hash === '#/settings') { const s = $('#syncMsg'); if (s) s.textContent = syncErr || el.textContent; }
+}
+function refreshView() {
+  const f = document.activeElement;
+  if (f && app.contains(f) && /INPUT|TEXTAREA/.test(f.tagName)) return; // don't yank the screen while typing
+  const y = window.scrollY; route(); window.scrollTo(0, y);
+}
+function syncSection() {
+  if (syncOn()) {
+    return `<section class="card">
+      <div class="sec-h">Sync between devices</div>
+      <p>Syncing as <b>${esc(load(SK.name, ''))}</b>. Workouts sync automatically to a secret Gist on GitHub.</p>
+      <p class="small muted" id="syncMsg">${esc(syncErr || $('#syncStat').textContent)}</p>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" data-act="ssync">Sync now</button>
+        <button class="btn" data-act="soff">Turn off sync</button>
+      </div>
+      <p class="small muted">Turning sync off keeps the workouts on this device.</p>
+    </section>
+    <section class="card">
+      <div class="sec-h">Set up another phone or laptop</div>
+      <p class="small">Make a link and open it on the other device – it connects with no GitHub login needed there.
+        Keep your own name for your other devices. Use another name (e.g. your partner’s) to give that person their own separate log.</p>
+      <label class="field"><span>Name on that device</span><input id="linkName" value="${esc(load(SK.name, ''))}" autocapitalize="words"></label>
+      <div class="row">
+        ${navigator.share ? `<button class="btn primary" data-act="lshare">Send link…</button>` : ''}
+        <button class="btn ${navigator.share ? '' : 'primary'}" data-act="lcopy">Copy link</button>
+      </div>
+      <p class="small muted">The link contains your sync token, so only send it to people you trust.</p>
+    </section>`;
+  }
+  return `<section class="card">
+    <div class="sec-h">Got a setup link?</div>
+    <p class="small">Paste the link you were sent here to connect this device – no GitHub account needed.</p>
+    <div class="ac"><input id="setupPaste" placeholder="Paste link" autocapitalize="off" spellcheck="false">
+      <button class="btn primary" data-act="spaste">Connect</button></div>
+  </section>
+  <section class="card">
+    <div class="sec-h">Sync between devices</div>
+    <p class="small">Keeps your workouts in step between your phone and laptop, using a secret Gist on GitHub. Each name gets its own log, so two people can share one token without mixing workouts.</p>
+    <label class="field"><span>Your name</span><input id="syncName" value="${esc(load(SK.name, ''))}" placeholder="e.g. Patrick" autocapitalize="words"></label>
+    <label class="field"><span>GitHub token (needs only the “gist” permission)</span>
+      <input id="syncTok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…"></label>
+    <p class="small"><a href="${TOKEN_URL}" target="_blank" rel="noopener">Create a token on GitHub ›</a></p>
+    <button class="btn primary wide" data-act="son">Connect</button>
+    <p class="small muted" id="syncMsg"></p>
+  </section>`;
+}
+async function connectSync() {
+  const name = $('#syncName').value.trim(), tok = $('#syncTok').value.trim();
+  const msg = $('#syncMsg');
+  if (!name || !tok) { msg.textContent = 'Fill in both your name and the token.'; return; }
+  if (name !== load(SK.name, '')) { store(SK.gist, null); gistId = null; }
+  store(SK.name, name); store(SK.tok, tok);
+  msg.textContent = 'Connecting…';
+  await sync();
+  if (syncState === 'auth' || syncState === 'offline') {
+    const st = syncState;
+    clearTimeout(retryT); store(SK.tok, null); setSync('off');
+    msg.textContent = st === 'auth' ? 'GitHub didn’t accept that token. Check that you copied all of it and ticked “gist”.' : 'Could not reach GitHub. Check your connection and try again.';
+    return;
+  }
+  toast('Sync is on'); settings();
+}
+function setupLink(name) {
+  const code = btoa(encodeURIComponent(JSON.stringify({ n: name, t: load(SK.tok, '') })));
+  return location.href.split('#')[0] + '#setup=' + code;
+}
+async function sendLink(how) {
+  const name = $('#linkName').value.trim();
+  if (!name) { toast('Type a name first'); return; }
+  const url = setupLink(name);
+  if (how === 'share') {
+    try { await navigator.share({ title: 'Workout log', text: `Tap to set up the workout log for ${name}:`, url }); } catch (e) {}
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link copied'); }
+  catch (e) { prompt('Copy this link:', url); }
+}
+function applySetupCode(code) { // returns true if this device is now set up
+  let d;
+  try { d = JSON.parse(decodeURIComponent(atob(code.trim()))); } catch (e) { d = null; }
+  if (!d || !d.n || !d.t) { toast('That setup link is broken – try copying it again'); return false; }
+  if (load(SK.tok, '') === d.t && load(SK.name, '') === d.n) { toast(`Already set up for ${d.n}`); return true; }
+  if (!confirm(`Set up the workout log on this device for “${d.n}”?`)) return false;
+  if (d.n !== load(SK.name, '')) { store(SK.gist, null); gistId = null; }
+  store(SK.name, d.n); store(SK.tok, d.t);
+  toast(`Set up for ${d.n} – syncing`);
+  return true;
+}
+function handleSetupLink() {
+  const m = location.hash.match(/^#setup=(.+)$/);
+  if (!m) return;
+  window.history.replaceState(null, '', location.href.split('#')[0] + '#/');
+  applySetupCode(m[1]);
+}
+function pasteSetup() {
+  const v = $('#setupPaste').value;
+  const m = v.match(/#setup=([A-Za-z0-9+/=]+)/);
+  if (!m) { $('#syncMsg').textContent = 'Paste the whole link you were sent (it contains “#setup=”).'; return; }
+  if (applySetupCode(m[1])) { sync().then(settings); }
+}
+function initSync() {
+  $('#syncStat').onclick = () => (syncState === 'auth' ? go('/settings') : sync());
+  if (syncOn()) { setSync('syncing'); sync(); } else setSync('off');
+  document.addEventListener('visibilitychange', () => {
+    if (!syncOn()) return;
+    if (document.visibilityState === 'visible') sync();                       // pull what the other device did
+    else if (syncState === 'pending') { clearTimeout(pushT); sync(); }        // leaving the app – push now
+  });
+  window.addEventListener('online', () => syncOn() && sync());
+}
+
+route();
+if ('serviceWorker' in navigator) { // the app is online-only; remove any old offline cache so updates show at once
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+}
+initSync();
+</script>
+</body>
+</html>
