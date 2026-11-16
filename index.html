@@ -126,8 +126,23 @@ table.st td:first-child,table.st th:first-child{width:44px;color:var(--muted)}
 .reminder{border-color:var(--accent)}
 p{margin:6px 0}
 .card.plan{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;text-decoration:none}
-.prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
-.sec-h + .prow{border-top:0}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 4px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.sec-h + .prow,.pg-h + .prow,.sec-h + .pgroup,.prow + .pgroup,.pgroup + .prow{border-top:0}
+.pgroup{border:1px solid var(--accent);border-radius:14px;padding:2px 10px 4px;margin:8px 0}
+.pg-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);padding-top:8px}
+.icon.on{color:var(--accent);background:var(--accent-soft)}
+.icon svg{vertical-align:middle}
+.group{border-color:var(--accent)}
+.grp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.grp-head .sec-h{color:var(--accent);margin:0}
+.gex{padding:10px 0 4px;border-top:1px solid var(--line)}
+.grp-head + .gex{border-top:0}
+.tag{flex:none;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:3px 9px}
+.set .n.tagn{color:var(--accent);font-size:13px;font-weight:600}
+.round-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;padding-top:8px;border-top:1px solid var(--line)}
+.set-h + .round-h{border-top:0;padding-top:0;margin-top:2px}
+.links{display:flex;flex-wrap:wrap;column-gap:20px}
+.addex.ss{border-color:var(--accent)}
 .pname{font-weight:500;overflow-wrap:anywhere}
 .stepper{display:flex;align-items:center}
 .stepper span{min-width:54px;text-align:center;font-size:14px;color:var(--muted)}
@@ -159,6 +174,7 @@ let workouts = load(KEYS.w, []);
 let active = load(KEYS.a, null);
 let plans = load(KEYS.p, []);            // workout plans: {id, name, updated, exercises:[{name, sets}]}
 let planDraft = null;
+let ssTarget = null;                     // index of the exercise the next added exercise joins as a superset
 let deleted = load(KEYS.d, {});          // id -> time deleted (so deletions sync too)
 let activeUpdated = load(KEYS.au, 0);
 let draft = null;           // copy of a past workout being edited
@@ -263,11 +279,33 @@ function lastPerf(name, beforeTs, skipId, wname) {
   return any;
 }
 const lc = s => (s || '').trim().toLowerCase();
+// Supersets: an exercise with ss = true is linked to the exercise before it. Returns groups of indexes.
+function blocksOf(ex) {
+  const out = [];
+  ex.forEach((e, i) => { if (i && e.ss && out.length) out[out.length - 1].push(i); else out.push([i]); });
+  return out;
+}
+const groupWord = n => (n > 2 ? 'Giant set' : 'Superset');
+function exList(ex) { return blocksOf(ex).map(b => b.map(i => ex[i].name).join(' + ')).join(' · '); }
+function removeAt(ex, i) { // keep the rest of a superset together when one exercise is removed
+  if (!ex[i].ss && ex[i + 1] && ex[i + 1].ss) ex[i + 1].ss = false;
+  ex.splice(i, 1);
+  if (ex[0]) ex[0].ss = false;
+}
+function moveUp(ex, i) { // within a superset: swap; otherwise move the whole superset above the previous block
+  const bs = blocksOf(ex), bi = bs.findIndex(b => b.includes(i)), b = bs[bi];
+  if (i > b[0]) { const a = ex[i - 1], c = ex[i]; const fa = a.ss, fc = c.ss; ex[i - 1] = c; ex[i] = a; c.ss = fa; a.ss = fc; return; }
+  if (bi === 0) return;
+  const moving = ex.splice(b[0], b.length);
+  ex.splice(bs[bi - 1][0], 0, ...moving);
+  ex.forEach((e, k) => { if (k === 0) e.ss = false; });
+}
+const LINK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 function findPlan(name) { const k = lc(name); return k ? plans.find(p => lc(p.name) === k) || null : null; }
 function lastNamed(name) { const k = lc(name); return k ? workouts.find(w => lc(w.name) === k) || null : null; }
 function sortedPlans() { return [...plans].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })); }
 function planFromWorkout(w, id) {
-  return { id: id || uid(), name: w.name.trim(), updated: Date.now(), exercises: w.exercises.map(e => ({ name: e.name, sets: Math.max(1, e.sets.length) })) };
+  return { id: id || uid(), name: w.name.trim(), updated: Date.now(), exercises: w.exercises.map((e, i) => ({ name: e.name, sets: Math.max(1, e.sets.length), ss: !!(i && e.ss) })) };
 }
 // When a named workout is saved: make a plan with that name if none exists (or offer to update it).
 function ensurePlan(w, askUpdate) {
@@ -275,7 +313,8 @@ function ensurePlan(w, askUpdate) {
   const p = findPlan(w.name);
   if (p) w.name = p.name; // same spelling as the plan
   if (!p) { if (w.exercises.length) { plans.push(planFromWorkout(w)); savePlans(); return 'created'; } return null; }
-  const a = p.exercises.map(e => lc(e.name)).join('|'), b = w.exercises.map(e => lc(e.name)).join('|');
+  const sig = ex => ex.map(e => (e.ss ? '+' : '|') + lc(e.name)).join('');
+  const a = sig(p.exercises), b = sig(w.exercises);
   if (askUpdate && w.exercises.length && a !== b &&
       confirm(`Today’s exercises are different from the plan “${p.name}”.\n\nUpdate the plan to today’s exercises?`)) {
     Object.assign(p, planFromWorkout(w, p.id), { name: p.name }); savePlans(); return 'updated';
@@ -290,7 +329,7 @@ function newWorkoutFrom(name, planEx, lastW = lastNamed(name)) {
     const n = Math.max(1, src ? src.sets.length : pe.sets);
     const sets = Array.from({ length: n }, (_, j) => ({
       w: ref && ref.sets.length ? (ref.sets[j] || ref.sets[ref.sets.length - 1]).w : null, r: null }));
-    return { name: pe.name, note: '', sets };
+    return { name: pe.name, note: '', ss: !!pe.ss, sets };
   });
   return { id: uid(), start: Date.now(), name: name || '', note: '', exercises };
 }
@@ -310,7 +349,7 @@ function repeatWorkout(id) {
   const p = findPlan(w.name);
   if (p) return startFromPlan(p.id);
   if (busy()) return;
-  active = newWorkoutFrom(w.name || '', w.exercises.map(e => ({ name: e.name, sets: e.sets.length })), w);
+  active = newWorkoutFrom(w.name || '', w.exercises.map(e => ({ name: e.name, sets: e.sets.length, ss: e.ss })), w);
   saveActive(); go('/workout');
 }
 
@@ -329,7 +368,7 @@ backBtn.onclick = () => {
 setBtn.onclick = () => go('/settings');
 function go(path) { if (location.hash === '#' + path) route(); else location.hash = path; }
 function route() {
-  clearInterval(timer); mode = null;
+  clearInterval(timer); mode = null; ssTarget = null;
   if (location.hash.startsWith('#setup=')) { handleSetupLink(); setTimeout(() => syncOn() && sync(), 0); }
   const p = (location.hash.slice(1) || '/').split('/').filter(Boolean);
   window.scrollTo(0, 0);
@@ -412,9 +451,12 @@ function editor(m) {
     <datalist id="plannames">${sortedPlans().map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
     <label class="field"><span>Workout note</span>
       <textarea data-f="wnote" rows="2" placeholder="e.g. Very tired today, slept badly">${esc(w.note)}</textarea></label>
-    <div id="exlist">${w.exercises.map((e, i) => cardHTML(w, e, i)).join('')}</div>
-    <section class="card addex">
-      <label for="exname" class="big">Add exercise</label>
+    <div id="exlist">${blocksHTML(w)}</div>
+    <section class="card addex${ssTarget != null && w.exercises[ssTarget] ? ' ss' : ''}">
+      ${ssTarget != null && w.exercises[ssTarget]
+        ? `<div class="grp-head"><label for="exname" class="big">Add to superset</label><button class="btn link" data-act="sscancel" style="padding:0">Cancel</button></div>
+           <p class="small muted">Joins ${esc(exList(w.exercises.slice(blocksOf(w.exercises).find(b => b.includes(ssTarget))[0], ssTarget + 1)))}</p>`
+        : `<label for="exname" class="big">Add exercise</label>`}
       <div class="ac">
         <input id="exname" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false"
           placeholder="${w.exercises.length ? 'Next exercise…' : 'e.g. Bench press'}" enterkeyhint="done">
@@ -434,13 +476,73 @@ function editor(m) {
     tick(); timer = setInterval(tick, 15000);
   }
 }
+function blocksHTML(w) {
+  let L = 0;
+  return blocksOf(w.exercises).map(b => (b.length > 1 ? groupHTML(w, b, String.fromCharCode(65 + L++)) : cardHTML(w, w.exercises[b[0]], b[0]))).join('');
+}
+function setRow(i, j, s, label) {
+  return `<div class="set">
+    <span class="n${label ? ' tagn' : ''}">${label || j + 1}</span>
+    <div class="unit"><input data-f="w" data-e="${i}" data-s="${j}" inputmode="decimal" enterkeyhint="next"
+      value="${fmt(s.w)}" placeholder="–" aria-label="Weight"><span>kg</span></div>
+    <span class="x">×</span>
+    <div class="unit"><input data-f="r" data-e="${i}" data-s="${j}" inputmode="numeric" enterkeyhint="next"
+      value="${s.r == null ? '' : s.r}" placeholder=" " aria-label="Reps"><span>reps</span></div>
+    <button class="icon" data-act="delset" data-e="${i}" data-s="${j}" aria-label="Delete set">✕</button>
+  </div>`;
+}
+function noteHTML(e, i) {
+  return e.note || openNotes.has(e)
+    ? `<textarea class="xnote" data-f="xnote" data-e="${i}" rows="2" placeholder="Note for this exercise, e.g. seat height 4, felt easy">${esc(e.note)}</textarea>` : '';
+}
+function groupHTML(w, b, L) {
+  const word = groupWord(b.length);
+  const rounds = Math.max(0, ...b.map(i => w.exercises[i].sets.length));
+  let rows = '';
+  for (let j = 0; j < rounds; j++) {
+    rows += `<div class="round-h">Round ${j + 1}</div>` +
+      b.filter(i => w.exercises[i].sets[j]).map(i => setRow(i, j, w.exercises[i].sets[j], L + (b.indexOf(i) + 1))).join('');
+  }
+  return `
+  <section class="card ex group" data-block="${b[0]}">
+    <div class="grp-head"><span class="sec-h">${word} ${L}</span>
+      <button class="btn link" data-act="ungroup" data-e="${b[0]}" style="padding:0">Ungroup</button></div>
+    ${b.map((i, k) => { const e = w.exercises[i]; return `
+      <div class="gex" data-card="${i}">
+        <div class="ex-head"><span class="tag">${L}${k + 1}</span>
+          <button class="exname" data-act="rename" data-e="${i}" title="Tap to rename">${esc(e.name)}</button>
+          <button class="icon" data-act="delex" data-e="${i}" aria-label="Remove exercise">✕</button></div>
+        ${lastBox(w, e)}
+        ${noteHTML(e, i)}
+        ${e.note || openNotes.has(e) ? '' : `<button class="btn link" data-act="note" data-e="${i}" style="padding-top:0">+ Note</button>`}
+      </div>`; }).join('')}
+    <div class="sets">
+      ${rounds ? `<div class="set-h"><span></span><span style="text-align:right">Weight</span><span></span><span style="text-align:right">Reps</span><span></span></div>` : ''}
+      ${rows}
+    </div>
+    <button class="btn add" data-act="addround" data-e="${b[0]}">+ Add round</button>
+    <button class="btn link" data-act="ssadd" data-e="${b[b.length - 1]}">+ Add exercise to this ${word.toLowerCase()}</button>
+  </section>`;
+}
+function lastBox(w, e) {
+  const lp = lastPerf(e.name, w.start, w.id, w.name);
+  const lastLabel = lp && lp.named ? `Last time in ${esc(lp.w.name)}` : w.name && lp ? 'Last time (another workout)' : 'Last time';
+  return lp ? `
+      <div class="last">
+        <div class="last-h"><span>${lastLabel} · ${dShort.format(lp.w.start)} (${relDay(lp.w.start)})</span>
+          <a href="#/x/${encodeURIComponent(e.name)}">History ›</a></div>
+        <div class="chips">${lp.e.sets.map(s => `<span class="chip">${setText(s)}</span>`).join('')}</div>
+        ${lp.e.note ? `<div class="last-note">“${esc(lp.e.note)}”</div>` : ''}
+      </div>`
+    : `<div class="last new">First time logging this exercise</div>`;
+}
 function cardHTML(w, e, i) {
   const lp = lastPerf(e.name, w.start, w.id, w.name);
   const lastLabel = lp && lp.named ? `Last time in ${esc(lp.w.name)}` : w.name && lp ? 'Last time (another workout)' : 'Last time';
   const prevFor = j => lp ? (lp.e.sets[j] || lp.e.sets[lp.e.sets.length - 1]) : null;
   const noteOpen = e.note || openNotes.has(e);
   return `
-  <section class="card ex" data-card="${i}">
+  <section class="card ex" data-card="${i}" data-block="${i}">
     <div class="ex-head">
       <button class="exname" data-act="rename" data-e="${i}" title="Tap to rename">${esc(e.name)}</button>
       <button class="icon" data-act="delex" data-e="${i}" aria-label="Remove exercise">✕</button>
@@ -469,14 +571,39 @@ function cardHTML(w, e, i) {
       }).join('')}
     </div>
     <button class="btn add" data-act="addset" data-e="${i}">+ Add set</button>
-    ${noteOpen
-      ? `<textarea class="xnote" data-f="xnote" data-e="${i}" rows="2" placeholder="Note for this exercise, e.g. seat height 4, felt easy">${esc(e.note)}</textarea>`
-      : `<button class="btn link" data-act="note" data-e="${i}">+ Add note</button>`}
+    ${noteHTML(e, i)}
+    <div class="links">
+      ${noteOpen ? '' : `<button class="btn link" data-act="note" data-e="${i}">+ Note</button>`}
+      <button class="btn link" data-act="ssadd" data-e="${i}">+ Superset</button>
+      ${i > 0 ? `<button class="btn link" data-act="ssjoin" data-e="${i}">Join with exercise above</button>` : ''}
+    </div>
   </section>`;
 }
-function rerenderCard(i) {
-  const el = $(`[data-card="${i}"]`); const w = cur();
-  if (el) el.outerHTML = cardHTML(w, w.exercises[i], i);
+function rerenderCard(i) { // re-draw the card or superset that exercise i is in
+  const w = cur(); let L = 0;
+  for (const b of blocksOf(w.exercises)) {
+    if (b.includes(i)) {
+      const el = $(`[data-block="${b[0]}"]`);
+      if (el) el.outerHTML = b.length > 1 ? groupHTML(w, b, String.fromCharCode(65 + L)) : cardHTML(w, w.exercises[b[0]], b[0]);
+      return;
+    }
+    if (b.length > 1) L++;
+  }
+}
+function addRound(first) {
+  const w = cur(), b = blocksOf(w.exercises).find(x => x[0] === first); if (!b) return;
+  for (const i of b) {
+    const e = w.exercises[i], last = e.sets[e.sets.length - 1];
+    if (last && !(last.r > 0)) { toast(`Fill in reps for ${e.name} first`); return focusSet(i, e.sets.length - 1, 'r'); }
+  }
+  for (const i of b) {
+    const e = w.exercises[i], prev = e.sets[e.sets.length - 1];
+    let wt = prev ? prev.w : null;
+    if (!prev) { const lp = lastPerf(e.name, w.start, w.id, w.name); wt = lp && lp.e.sets[0] ? lp.e.sets[0].w : null; }
+    e.sets.push({ w: wt, r: null });
+  }
+  persist(); rerenderCard(first);
+  focusSet(b[0], w.exercises[b[0]].sets.length - 1, 'r');
 }
 function focusSet(i, j, field) {
   const inp = $(`input[data-f="${field}"][data-e="${i}"][data-s="${j}"]`);
@@ -488,10 +615,19 @@ function addExercise(raw) {
   if (!name) { $('#exname').focus(); return; }
   const lp = lastPerf(name, w.start, w.id, w.name);
   const firstW = lp && lp.e.sets[0] ? lp.e.sets[0].w : null;
-  w.exercises.push({ name, note: '', sets: [{ w: firstW, r: null }] });
+  const at = ssTarget != null && w.exercises[ssTarget] ? ssTarget : null;
+  ssTarget = null;
+  let i;
+  if (at != null) { // join a superset: as many sets as the exercise it joins has left
+    const left = Math.max(1, w.exercises[at].sets.filter(s => !(s.r > 0)).length);
+    i = at + 1;
+    w.exercises.splice(i, 0, { name, note: '', ss: true, sets: Array.from({ length: left }, () => ({ w: firstW, r: null })) });
+  } else {
+    w.exercises.push({ name, note: '', sets: [{ w: firstW, r: null }] });
+    i = w.exercises.length - 1;
+  }
   persist();
   editor(mode);
-  const i = w.exercises.length - 1;
   focusSet(i, 0, firstW != null ? 'r' : 'w');
 }
 function addSet(i) {
@@ -511,7 +647,11 @@ function cleaned(w) {
   const c = JSON.parse(JSON.stringify(w));
   c.note = (c.note || '').trim(); c.name = (c.name || '').trim();
   c.exercises.forEach(e => { e.note = (e.note || '').trim(); e.sets = e.sets.filter(s => s.r != null && s.r > 0); });
-  c.exercises = c.exercises.filter(e => e.sets.length || e.note);
+  const bid = [];
+  blocksOf(c.exercises).forEach((b, k) => b.forEach(i => { bid[i] = k; }));
+  const kept = [];
+  c.exercises.forEach((e, i) => { if (e.sets.length || e.note) kept.push({ e, b: bid[i] }); });
+  c.exercises = kept.map((x, k) => { x.e.ss = k > 0 && kept[k - 1].b === x.b; return x.e; });
   return c;
 }
 function missingReps(w) { // sets where reps haven't been typed in
@@ -608,7 +748,7 @@ function historyView() {
     html += `
       <a class="card hist" href="#/w/${w.id}">
         <div class="hist-top"><b>${dShort.format(w.start)}${w.name ? ' · ' + esc(w.name) : ''}</b><span class="muted small">${workoutDur(w)}</span></div>
-        <div class="muted">${esc(w.exercises.map(e => e.name).join(' · ') || '—')}</div>
+        <div class="muted">${esc(exList(w.exercises) || '—')}</div>
         ${w.note ? `<div class="small" style="margin-top:4px">${esc(w.note.length > 90 ? w.note.slice(0, 90) + '…' : w.note)}</div>` : ''}
       </a>`;
   }
@@ -626,11 +766,15 @@ function detail(id) {
       <div class="muted">${timeRange(w)}${w.end ? ' · ' + workoutDur(w) : ''}</div>
       ${w.note ? `<div class="wnote">${esc(w.note)}</div>` : ''}
     </div>
-    ${w.exercises.map(e => `
-      <section class="card">
-        <a class="exname" href="#/x/${encodeURIComponent(e.name)}">${esc(e.name)} <span class="muted small">›</span></a>
-        ${setTable(e.sets)}
-        ${e.note ? `<div class="xnote-view">${esc(e.note)}</div>` : ''}
+    ${blocksOf(w.exercises).map(b => `
+      <section class="card${b.length > 1 ? ' group' : ''}">
+        ${b.length > 1 ? `<div class="grp-head"><span class="sec-h">${groupWord(b.length)}</span></div>` : ''}
+        ${b.map((i, k) => { const e = w.exercises[i]; return `
+          <div${k ? ' class="gex"' : ''}>
+            <a class="exname" href="#/x/${encodeURIComponent(e.name)}">${esc(e.name)} <span class="muted small">›</span></a>
+            ${setTable(e.sets)}
+            ${e.note ? `<div class="xnote-view">${esc(e.note)}</div>` : ''}
+          </div>`; }).join('')}
       </section>`).join('')}
     <div class="actions">
       ${active ? '' : `<button class="btn primary big" data-act="repeat" data-id="${w.id}">${findPlan(w.name) ? `Start “${esc(findPlan(w.name).name)}” again` : 'Do this workout again'}</button>`}
@@ -666,7 +810,7 @@ function planCard(p, act) {
   const last = lastNamed(p.name);
   const inner = `
     <div class="hist-top"><b>${esc(p.name)}</b><span class="muted small">${last ? 'last done ' + relDay(last.start) : 'not done yet'}</span></div>
-    <div class="muted small">${esc(p.exercises.map(e => e.name).join(' · ') || 'No exercises yet')}</div>`;
+    <div class="muted small">${esc(exList(p.exercises) || 'No exercises yet')}</div>`;
   return act === 'start'
     ? `<button class="card plan" data-act="startplan" data-id="${p.id}">${inner}</button>`
     : `<a class="card plan" href="#/plan/${p.id}">${inner}</a>`;
@@ -710,15 +854,21 @@ function planEditor() {
       : `<p class="small muted" style="margin:-4px 2px 12px">Set how many sets you plan for each exercise. You can always add or remove sets during the workout.</p>`}
     <section class="card">
       <div class="sec-h">Exercises, in order</div>
-      ${p.exercises.length ? p.exercises.map((e, i) => `
+      ${p.exercises.length ? blocksOf(p.exercises).map(b => {
+        const rows = b.map(i => { const e = p.exercises[i]; return `
         <div class="prow">
           <div class="pname">${esc(e.name)}</div>
+          <button class="icon" data-act="pdel" data-e="${i}" aria-label="Remove">✕</button>
           <div class="stepper"><button class="icon" data-act="pminus" data-e="${i}" aria-label="Fewer sets" ${e.sets > 1 ? '' : 'disabled'}>−</button>
             <span>${e.sets} set${e.sets > 1 ? 's' : ''}</span>
             <button class="icon" data-act="pplus" data-e="${i}" aria-label="More sets">+</button></div>
-          <div class="pbtns"><button class="icon" data-act="pup" data-e="${i}" aria-label="Move up" ${i ? '' : 'disabled'}>↑</button>
-            <button class="icon" data-act="pdel" data-e="${i}" aria-label="Remove">✕</button></div>
-        </div>`).join('') : `<p class="small muted">No exercises yet – add them below in the order you’ll do them.</p>`}
+          <div class="pbtns">
+            <button class="icon${e.ss ? ' on' : ''}" data-act="plink" data-e="${i}" aria-label="Superset with the exercise above" title="Superset with the exercise above" ${i ? '' : 'disabled'}>${LINK_SVG}</button>
+            <button class="icon" data-act="pup" data-e="${i}" aria-label="Move up" ${i ? '' : 'disabled'}>↑</button></div>
+        </div>`; }).join('');
+        return b.length > 1 ? `<div class="pgroup"><div class="pg-h">${groupWord(b.length)}</div>${rows}</div>` : rows;
+      }).join('') : `<p class="small muted">No exercises yet – add them below in the order you’ll do them.</p>`}
+      ${p.exercises.length > 1 ? `<p class="small muted" style="margin-top:8px">Tap ${LINK_SVG.replace('width="18" height="18"', 'width="14" height="14"')} to make an exercise a superset with the one above.</p>` : ''}
     </section>
     <section class="card addex">
       <label for="exname" class="big">Add exercise</label>
@@ -740,7 +890,7 @@ function planAddExercise(raw) {
   const name = canonical(raw);
   if (!name) { $('#exname').focus(); return; }
   const lp = lastPerf(name, null, null, planDraft.name);
-  planDraft.exercises.push({ name, sets: lp ? Math.max(1, lp.e.sets.length) : 3 });
+  planDraft.exercises.push({ name, sets: lp ? Math.max(1, lp.e.sets.length) : 3, ss: false });
   planEditor();
   const inp = $('#exname'); inp.focus(); inp.scrollIntoView({ block: 'center' });
 }
@@ -823,7 +973,7 @@ function importBackup(file) {
         workouts.push({
           id: w.id, start: w.start, end: w.end || null, updated: Date.now(), name: w.name || '', note: w.note || '',
           exercises: w.exercises.filter(e => e && e.name).map(e => ({
-            name: String(e.name), note: e.note || '',
+            name: String(e.name), note: e.note || '', ss: !!e.ss,
             sets: (e.sets || []).map(s => ({ w: num(s.w), r: num(s.r) })).filter(s => s.r != null)
           }))
         });
@@ -893,7 +1043,10 @@ app.addEventListener('keydown', ev => {
   } else if (ev.key === 'Enter' && t.dataset.f === 'w') {
     ev.preventDefault(); focusSet(t.dataset.e, t.dataset.s, 'r');
   } else if (ev.key === 'Enter' && t.dataset.f === 'r') {
-    ev.preventDefault(); t.blur();
+    ev.preventDefault();
+    const blk = t.closest('[data-block]'), rs = blk ? [...blk.querySelectorAll('input[data-f="r"]')] : [];
+    const nx = rs[rs.indexOf(t) + 1];
+    if (nx) nx.focus(); else t.blur();
   }
 });
 document.addEventListener('click', ev => {
@@ -918,8 +1071,9 @@ app.addEventListener('click', ev => {
     }
     case 'pplus': planDraft.exercises[i].sets++; return planEditor();
     case 'pminus': planDraft.exercises[i].sets = Math.max(1, planDraft.exercises[i].sets - 1); return planEditor();
-    case 'pup': { const ex = planDraft.exercises; if (i > 0) [ex[i - 1], ex[i]] = [ex[i], ex[i - 1]]; return planEditor(); }
-    case 'pdel': planDraft.exercises.splice(i, 1); return planEditor();
+    case 'pup': moveUp(planDraft.exercises, i); return planEditor();
+    case 'plink': if (i > 0) planDraft.exercises[i].ss = !planDraft.exercises[i].ss; return planEditor();
+    case 'pdel': removeAt(planDraft.exercises, i); return planEditor();
     case 'psave': if (savePlanDraft()) { toast('Plan saved'); location.replace('#/plans'); } return;
     case 'pstart': { const sp = savePlanDraft(); if (sp) startFromPlan(sp.id); return; }
     case 'pcancel': planDraft = null; return location.replace('#/plans');
@@ -932,6 +1086,18 @@ app.addEventListener('click', ev => {
     case 'addex': return addExercise($('#exname').value);
     case 'pick': return addExercise(b.dataset.name);
     case 'addset': return addSet(i);
+    case 'addround': return addRound(i);
+    case 'ssadd': {
+      ssTarget = i; editor(mode);
+      const inp = $('#exname'); inp.focus(); inp.scrollIntoView({ block: 'center' }); return;
+    }
+    case 'sscancel': ssTarget = null; return editor(mode);
+    case 'ssjoin': if (i > 0) { w.exercises[i].ss = true; persist(); editor(mode); } return;
+    case 'ungroup': {
+      const bk = blocksOf(w.exercises).find(x => x[0] === i);
+      if (bk) bk.slice(1).forEach(k => { w.exercises[k].ss = false; });
+      persist(); return editor(mode);
+    }
     case 'delset': {
       w.exercises[i].sets.splice(+b.dataset.s, 1); persist(); return rerenderCard(i);
     }
@@ -939,7 +1105,7 @@ app.addEventListener('click', ev => {
       const e = w.exercises[i];
       const logged = e.sets.some(s => s.r > 0);
       if (logged && !confirm(`Remove ${e.name} from this workout?`)) return;
-      w.exercises.splice(i, 1); persist(); return editor(mode);
+      removeAt(w.exercises, i); persist(); return editor(mode);
     }
     case 'rename': {
       const e = w.exercises[i];
@@ -1002,14 +1168,14 @@ function normW(w) {
   return {
     id: String(w.id), start: +w.start, end: w.end ? +w.end : null, updated: +w.updated || 0, name: w.name || '', note: w.note || '',
     exercises: (w.exercises || []).filter(e => e && e.name).map(e => ({
-      name: String(e.name), note: e.note || '',
+      name: String(e.name), note: e.note || '', ss: !!e.ss,
       sets: (e.sets || []).map(s => ({ w: s.w == null ? null : +s.w, r: s.r == null ? null : +s.r }))
     }))
   };
 }
 function normP(p) {
   return { id: String(p.id), name: String(p.name), updated: +p.updated || 0,
-    exercises: (p.exercises || []).filter(e => e && e.name).map(e => ({ name: String(e.name), sets: Math.max(1, +e.sets || 1) })) };
+    exercises: (p.exercises || []).filter(e => e && e.name).map(e => ({ name: String(e.name), sets: Math.max(1, +e.sets || 1), ss: !!e.ss })) };
 }
 function normData(d) {
   d = d || {};
